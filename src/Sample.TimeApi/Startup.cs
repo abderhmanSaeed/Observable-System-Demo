@@ -7,6 +7,7 @@ using Nest;
 using Sample.Common;
 using Sample.TimeApi.Data;
 using Sample.TimeApi.IRepositories;
+using StackExchange.Redis;
 using System;
 namespace Sample.TimeApi
 {
@@ -40,6 +41,23 @@ namespace Sample.TimeApi
             services.AddScoped<IProductService, ProductService>();
 
             services.AddSingleton<IDeviceRepository, SqlDeviceRepository>();
+
+            services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect("localhost"));
+            services.AddHttpClient();
+
+            // Add Redis service dependency
+
+            services.AddSingleton<IRedisCacheService, RedisCacheService>();
+
+            services.AddSingleton<IConnectionMultiplexer>(sp =>
+            {
+                var configuration = sp.GetRequiredService<IConfiguration>();
+                var redisConfig = $"{configuration["Redis:Host"]}:{configuration["Redis:Port"]}";
+                return ConnectionMultiplexer.Connect(redisConfig);
+            });
+
+
+
             services.AddSampleAppOptions(Configuration);
             services.AddWebSampleTelemetry(Configuration);
 

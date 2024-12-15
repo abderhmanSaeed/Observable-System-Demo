@@ -2,7 +2,9 @@
 using Microsoft.Extensions.Logging;
 using Sample.TimeApi.Data;
 using Sample.TimeApi.IRepositories;
+using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace Sample.TimeApi.Controllers
 {
@@ -15,16 +17,19 @@ namespace Sample.TimeApi.Controllers
     {
         private readonly IProductService _productService;
         private readonly ILogger<ProductController> _logger;
+        private readonly IRedisCacheService _redisCacheService;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ProductController"/> class.
         /// </summary>
         /// <param name="productService">The product service for handling product operations.</param>
         /// <param name="logger">The logger for capturing log details.</param>
-        public ProductController(IProductService productService, ILogger<ProductController> logger)
+        /// <param name="redisCacheService">Service for interacting with Redis cache.</param>
+        public ProductController(IProductService productService, ILogger<ProductController> logger, IRedisCacheService redisCacheService)
         {
             _productService = productService;
             _logger = logger;
+            _redisCacheService = redisCacheService;
         }
 
         /// <summary>
@@ -48,6 +53,43 @@ namespace Sample.TimeApi.Controllers
         public Product GetProductById(int id)
         {
             return _productService.GetProductById(id);
+        }
+
+        /// <summary>
+        /// Fetches a product by its ID. If the product is not found in the Redis cache,
+        /// it simulates fetching from a database and stores it in the cache.
+        /// </summary>
+        /// <param name="id">The ID of the product to retrieve.</param>
+        /// <returns>An <see cref="IActionResult"/> containing the product.</returns>
+        [HttpGet]
+        [Route("GetProduct/{id}")]
+        public async Task<IActionResult> GetProduct(int id)
+        {
+            var cacheKey = $"product:{id}";
+            var product = await _redisCacheService.GetAsync<Product>(cacheKey);
+
+            if (product == null)
+            {
+                // Simulate fetching from the database
+                product = new Product { ProductId = id, ProductName = "Sample Product" };
+                await _redisCacheService.SetAsync(cacheKey, product, TimeSpan.FromHours(1));
+            }
+
+            return Ok(product);
+        }
+
+        /// <summary>
+        /// Removes a product's cache entry by its ID.
+        /// </summary>
+        /// <param name="id">The ID of the product whose cache is to be removed.</param>
+        /// <returns>An <see cref="IActionResult"/> indicating the success of the operation.</returns>
+        [HttpDelete]
+        [Route("DeleteProductCache/{id}")]
+        public async Task<IActionResult> DeleteProductCache(int id)
+        {
+            var cacheKey = $"product:{id}";
+            await _redisCacheService.RemoveAsync(cacheKey);
+            return Ok($"Cache for product {id} removed.");
         }
 
         /// <summary>
