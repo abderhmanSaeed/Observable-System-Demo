@@ -103,6 +103,7 @@ namespace Sample.TimeApi.Controllers
             _productService.AddProduct(product);
         }
 
+
         /// <summary>
         /// Updates an existing product in the system.
         /// </summary>
