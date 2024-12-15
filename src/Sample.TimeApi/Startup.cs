@@ -3,9 +3,11 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Nest;
 using Sample.Common;
 using Sample.TimeApi.Data;
-
+using Sample.TimeApi.IRepositories;
+using System;
 namespace Sample.TimeApi
 {
     public class Startup
@@ -21,6 +23,22 @@ namespace Sample.TimeApi
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddControllers();
+
+            // Configure elastic search URI and default index
+            var node = new Uri("http://localhost:9200");
+            var settings = new ConnectionSettings(node);
+            settings.DefaultIndex("products");
+
+            // Add elstic cliend dependency
+            var client = new ElasticClient(settings);
+            services.AddSingleton<IElasticClient>(client);
+
+            // Register it for DI
+            services.AddSingleton<IElasticClient>(client);
+
+            // Add product service dependency
+            services.AddScoped<IProductService, ProductService>();
+
             services.AddSingleton<IDeviceRepository, SqlDeviceRepository>();
             services.AddSampleAppOptions(Configuration);
             services.AddWebSampleTelemetry(Configuration);
